@@ -1,0 +1,24 @@
+{
+  "description": "",
+  "engines": {
+    "node": ">= 0.6.0",
+    "npm": ">= 1.0.0"
+  },
+  "keywords": [],
+  "license": "ISC",
+  "main": "./app/server.js",
+  "name": "youtube-rankings",
+  "scripts": {
+    "start": "node ./app/server.js",
+    "scrap": "nodemon ./app/scraper.js"
+  },
+  "version": "1.0.0",
+  "devDependencies": {
+    "express": "^4.16.2",
+    "async": "^2.6.0"
+  },
+  "dependencies": {
+    "path": "^0.12.7",
+    "puppeteer": "^1.4.0"
+  }
+}
