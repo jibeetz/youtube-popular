@@ -1,47 +1,111 @@
 const fs = require("fs");
 const puppeteer = require('puppeteer');
-const DataUrl = require('./constants').url;
 
-(async () => {
+module.exports = {
 
-	const browser = await puppeteer.launch({headless: false, devtools: true});
-	const page = await browser.newPage();
+	scrap: function(channelUrl) {
+		(async () => {
 
-	page.on("error", function(err) {
-		theTempValue = err.toString();
-		console.log("Page error: " + theTempValue);
-	})
+			const browser = await puppeteer.launch({headless: false, devtools: true});
+			const page = await browser.newPage();
 
-	page.on("pageerror", function(err) {
-		theTempValue = err.toString();
-		console.log("Page error: " + theTempValue);
-	})
+			page.on("error", function(err) {
+				theTempValue = err.toString();
+				console.log("Page error: " + theTempValue);
+			})
 
-	// await page.exposeFunction('cleanResult', async result => {
+			page.on("pageerror", function(err) {
+				theTempValue = err.toString();
+				console.log("Page error: " + theTempValue);
+			})
 
-	// 	return new Promise((resolve, reject) => {
+			async function captureTeam(page) {
 
-	// 		if(result === 'L' || result === 'L-wo')
-	// 			result = 0;
+				await page.goto(channelUrl + '/videos?flow=grid&view=0&sort=p', {waitUntil: 'networkidle0'});
 
-	// 		if(result === 'W' || result === 'W-wo')
-	// 			result = 1;
+				let videosList = await page.evaluate(async () => {
 
-	// 		if(result === 'T')
-	// 			result = -1;
+					let videos = await document.querySelectorAll('ytd-grid-video-renderer');
 
-	// 		resolve(result);
-	// 	});
-	// });
+					let data = [];
 
-	async function captureTeam(page, team) {
+					for (const video of videos) {
+						let videoTitle = await video.querySelector('#video-title').innerText;
+						let videoUrl = await video.querySelector('#video-title').href;
+						let  videoObj = {}
+						videoObj.url = videoUrl
+						videoObj.title = videoTitle
+						data.push(videoObj)
+					}
 
-		await page.goto(DataUrl(team.code), {waitUntil: 'networkidle0'});
+					return data;
 
-		await page.waitFor(3000);
+				})
+
+				for (let [i, videoItem] of videosList.entries()) {
+					if(i > 3)
+						break;
+
+					await page.goto(videoItem.url, {waitUntil: 'networkidle0'});
+
+					let infose = await page.evaluate(async () => {
+
+						let infos = {}
+						infos.views = await document.querySelector('.view-count').innerText;
+						infos.date = await document.querySelector('.date').innerText;
+						infos.likes = await document.querySelector('#top-level-buttons ytd-toggle-button-renderer:nth-child(1) yt-formatted-string').getAttribute('aria-label');
+						infos.dislikes = await document.querySelector('#top-level-buttons ytd-toggle-button-renderer:nth-child(2) yt-formatted-string').getAttribute('aria-label');
+						infos.likeBar = await document.querySelector('#like-bar').getAttribute('style');
+
+						return infos
+					})
+
+					Object.assign(videosList[i], infose);
+				}
+
+				videosList = videosList.map( (video) => {
+
+					if(typeof video.views !== 'undefined'){
+						video.views = video.views.replace(' views', '').replace(/,/g, '');
+						video.views = parseInt(video.views)
+					}
+
+					if(typeof video.likes !== 'undefined'){
+						video.likes = video.likes.replace(' likes', '').replace(/,/g, '');
+						video.likes = parseFloat(video.likes)
+					}
+
+					if(typeof video.dislikes !== 'undefined'){
+						video.dislikes = video.dislikes.replace(' dislikes', '').replace(/,/g, '');
+						video.dislikes = parseFloat(video.dislikes)
+					}
+
+					if(typeof video.date !== 'undefined'){
+						video.date = video.date.replace('Streamed live on ', '').replace('Published on ', '')
+					}
+
+					if(typeof video.likeBar !== 'undefined'){
+						video.likeBar = video.likeBar.replace('width: ', '').replace(/%;/g, '');
+						video.likeBar = parseFloat(video.likeBar)
+					}
+
+					return video
+				})
+
+				console.log('videosList', videosList);
+
+				// fs.writeFile(__dirname + '/data/' + teamConstructed.meta.id + '.json', JSON.stringify(teamConstructed), function (err) {
+				// 	if (err) return console.log(err);
+				// 	console.log('Appended!');
+				// });
+
+				await page.waitFor(6000);
+			}
+
+			await captureTeam(page);
+
+			await browser.close();
+		})();
 	}
 
-	await captureTeam(page, team);
-
-	await browser.close();
-})();
+}

@@ -3,6 +3,7 @@ var bodyParser = require("body-parser");
 var fs = require("fs");
 const async = require("async");
 const path = require("path");
+const Scraper = require('./scraper').scrap;
 var app = express();
 
 app.use(express.static('app/view'));
@@ -28,6 +29,19 @@ app.use(function (req, res, next) {
 	// Pass to next layer of middleware
 	next();
 });
+
+app.post('/generate', function (req, res) {
+
+	Scraper(req.body.url);
+
+	res.send({});
+
+})
+
+
+app.get('/', function (req, res) {
+	res.sendFile(__dirname + "/view/" + "index.html");
+})
 
 var server = app.listen(9595, function () {
 
